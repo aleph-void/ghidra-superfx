@@ -1,0 +1,913 @@
+# SuperFX p-code cases.  Expectations are worked out by hand from the GSU documentation (fullsnes
+# "SNES Cart GSU-n CPU ..." sections): operation and flag tables.  Registers start at 0, flags at 0,
+# memory at 0.  Code (assembled with bass) is placed at 0x8000, RAM at 0x700000, ROM data at 0x018000.
+# ----------------------------------------------------------------------------------------------
+# prefixes and register selection
+
+case sreg_dreg_add
+asm from r1; to r2; add r3
+set R1 0x7fff
+set R3 1
+expect R2 0x8000
+expect R0 0
+expect R1 0x7fff
+expect flagOV 1
+expect flagS 1
+expect flagCY 0
+expect flagZ 0
+end
+
+case with_sets_both
+asm with r4; add r5
+set R4 0x0010
+set R5 0x0003
+expect R4 0x13
+expect R0 0
+end
+
+case prefix_reset_after_op
+asm from r1; add r3; add r4
+set R1 5
+set R3 6
+set R4 100
+expect R0 111
+end
+
+case to_only_uses_r0_source
+asm to r6; add r3
+set R0 0x20
+set R1 0x1000
+set R3 0x0005
+expect R6 0x25
+expect R0 0x20
+end
+
+case prefix_kept_across_branch
+asm from r2; bra 0x8004; add r3; nop
+set R2 0x100
+set R3 0x23
+set R0 0x9999
+expect R0 0x123
+end
+
+case alt2_ignored_on_stw
+code 3e33
+set R0 0xabcd
+set R3 0x0020
+expect mem16:700020 0xabcd
+end
+
+case r15_as_source
+asm add r15
+set R0 0x10
+expect R0 0x8011
+end
+
+# ----------------------------------------------------------------------------------------------
+# ALU and flags
+
+case add_carry_out
+asm add r3
+set R0 0xffff
+set R3 1
+expect R0 0
+expect flagCY 1
+expect flagZ 1
+expect flagS 0
+expect flagOV 0
+end
+
+case add_imm
+asm add #5
+set R0 0x10
+expect R0 0x15
+expect flagCY 0
+end
+
+case adc_carry_in_and_out
+asm adc r3
+set R0 0xffff
+set R3 0
+set flagCY 1
+expect R0 0
+expect flagCY 1
+expect flagZ 1
+end
+
+case adc_overflow
+asm adc r3
+set R0 0x7fff
+set R3 0
+set flagCY 1
+expect R0 0x8000
+expect flagOV 1
+expect flagS 1
+expect flagCY 0
+end
+
+case adc_imm
+asm adc #15
+set R0 0x00f1
+set flagCY 1
+expect R0 0x101
+end
+
+case sub_borrow
+asm sub r3
+set R0 5
+set R3 7
+expect R0 0xfffe
+expect flagCY 0
+expect flagS 1
+expect flagZ 0
+expect flagOV 0
+end
+
+case sub_equal
+asm sub r3
+set R0 5
+set R3 5
+expect R0 0
+expect flagCY 1
+expect flagZ 1
+end
+
+case sub_signed_overflow
+asm sub r3
+set R0 0x8000
+set R3 1
+expect R0 0x7fff
+expect flagOV 1
+expect flagCY 1
+expect flagS 0
+end
+
+case sub_imm
+asm sub #3
+set R0 10
+expect R0 7
+end
+
+case sbc_no_carry
+asm sbc r3
+set R0 5
+set R3 3
+expect R0 1
+expect flagCY 1
+end
+
+case sbc_with_carry
+asm sbc r3
+set R0 5
+set R3 3
+set flagCY 1
+expect R0 2
+expect flagCY 1
+end
+
+case sbc_borrow_chain
+asm sbc r3
+set R0 0
+set R3 0
+expect R0 0xffff
+expect flagCY 0
+expect flagS 1
+end
+
+case cmp_leaves_registers
+asm cmp r3
+set R0 3
+set R3 5
+expect R0 3
+expect flagCY 0
+expect flagS 1
+expect flagZ 0
+end
+
+case cmp_equal
+asm cmp r3
+set R0 0x1234
+set R3 0x1234
+expect flagZ 1
+expect flagCY 1
+end
+
+case and_bic
+asm to r5; bic r3; and r3
+set R0 0xff0f
+set R3 0x0ff0
+expect R0 0x0f00
+expect R5 0xf00f
+expect flagS 0
+end
+
+case and_imm_bic_imm
+asm to r4; bic #12; and #12
+set R0 0x00ff
+expect R0 0x0c
+expect R4 0xf3
+end
+
+case or_xor
+asm or r3; xor r4
+set R0 0x0f00
+set R3 0x00f0
+set R4 0x0fff
+expect R0 0x000f
+end
+
+case or_xor_imm
+asm or #3; xor #5
+set R0 0x10
+expect R0 0x16
+end
+
+case not_op
+asm not
+set R0 0x00ff
+expect R0 0xff00
+expect flagS 1
+expect flagZ 0
+end
+
+case lsr_op
+asm lsr
+set R0 0x8001
+expect R0 0x4000
+expect flagCY 1
+expect flagS 0
+expect flagZ 0
+end
+
+case asr_op
+asm asr
+set R0 0x8001
+expect R0 0xc000
+expect flagCY 1
+expect flagS 1
+end
+
+case rol_op
+asm rol
+set R0 0x8001
+set flagCY 1
+expect R0 0x0003
+expect flagCY 1
+end
+
+case ror_op
+asm ror
+set R0 0x0001
+set flagCY 1
+expect R0 0x8000
+expect flagCY 1
+expect flagS 1
+end
+
+case div2_negative
+asm div2
+set R0 0xfffe
+expect R0 0xffff
+expect flagCY 0
+end
+
+case div2_minus_one_gives_zero
+asm div2
+set R0 0xffff
+expect R0 0
+expect flagCY 1
+expect flagZ 1
+end
+
+case swap_op
+asm swap
+set R0 0x1234
+expect R0 0x3412
+end
+
+case sex_lob_hib
+asm sex; to r2; lob; to r3; hib
+set R0 0x0080
+expect R0 0xff80
+expect R2 0x0080
+expect R3 0x00ff
+expect flagS 1
+end
+
+case lob_flags
+asm lob
+set R0 0x12f4
+expect R0 0x00f4
+expect flagS 1
+expect flagZ 0
+end
+
+case hib_zero
+asm hib
+set R0 0x0012
+expect R0 0
+expect flagZ 1
+expect flagS 0
+end
+
+case merge_op
+asm merge
+set R7 0x12ab
+set R8 0x34cd
+expect R0 0x1234
+expect flagS 0
+expect flagOV 0
+expect flagCY 1
+expect flagZ 1
+end
+
+case merge_flags_all
+asm merge
+set R7 0xff00
+set R8 0xff00
+expect R0 0xffff
+expect flagS 1
+expect flagOV 1
+expect flagCY 1
+expect flagZ 1
+end
+
+case merge_zero
+asm merge
+set R7 0x00ff
+set R8 0x00ff
+expect R0 0x0000
+expect flagZ 0
+end
+
+case inc_dec
+asm inc r5; inc r5; dec r6
+set R5 0xffff
+set R6 0
+expect R5 1
+expect R6 0xffff
+expect flagS 1
+end
+
+case inc_wraps_to_zero
+asm inc r5
+set R5 0xffff
+expect R5 0
+expect flagZ 1
+end
+
+case mult_signed
+asm mult r3
+set R0 0xfffe
+set R3 3
+expect R0 0xfffa
+expect flagS 1
+end
+
+case umult
+asm umult r3
+set R0 0x12fe
+set R3 0x0103
+expect R0 0x02fa
+end
+
+case mult_imm_umult_imm
+asm to r2; umult #4; mult #3
+set R0 0xfffe
+expect R0 0xfffa
+expect R2 0x03f8
+end
+
+case fmult_positive
+asm fmult
+set R0 0x4000
+set R6 0x4000
+expect R0 0x1000
+expect flagCY 0
+end
+
+case fmult_negative_carry
+asm fmult
+set R0 1
+set R6 0x8000
+expect R0 0xffff
+expect flagCY 1
+expect flagS 1
+end
+
+case lmult
+asm to r2; lmult
+set R0 0x1234
+set R6 0x0100
+expect R4 0x3400
+expect R2 0x0012
+end
+
+case lmult_negative
+asm lmult
+set R0 0xffff
+set R6 0x0002
+expect R4 0xfffe
+expect R0 0xffff
+expect flagS 1
+end
+
+# ----------------------------------------------------------------------------------------------
+# moves and immediates
+
+case ibt_sign_extends
+asm ibt r5, #0x80; ibt r6, #0x7f
+expect R5 0xff80
+expect R6 0x007f
+end
+
+case iwt_op
+asm iwt r5, #0x1234
+expect R5 0x1234
+end
+
+case move_op
+asm move r5, r3
+set R3 0x8001
+expect R5 0x8001
+expect flagS 0
+expect flagZ 0
+end
+
+case moves_flags
+asm moves r5, r3
+set R3 0x0080
+expect R5 0x0080
+expect flagOV 1
+expect flagS 0
+expect flagZ 0
+end
+
+case moves_zero_negative
+asm moves r5, r3
+set R3 0x8000
+expect R5 0x8000
+expect flagS 1
+expect flagOV 0
+end
+
+# ----------------------------------------------------------------------------------------------
+# memory
+
+case stw_ldw_roundtrip
+asm stw (r3); ibt r0, #0; ldw (r3)
+set R0 0xbeef
+set R3 0x0010
+expect mem:700010 0xef
+expect mem:700011 0xbe
+expect R0 0xbeef
+end
+
+case stw_odd_address_swaps
+asm stw (r3)
+set R0 0xbeef
+set R3 0x0011
+expect mem:700011 0xef
+expect mem:700010 0xbe
+end
+
+case ldw_odd_address_swaps
+asm ldw (r3)
+set R3 0x0011
+set mem:700011 0x12
+set mem:700010 0x34
+expect R0 0x3412
+end
+
+case stb_ldb
+asm stb (r3); ibt r0, #0; ldb (r3)
+set R0 0x12ab
+set R3 0x0021
+expect mem:700021 0xab
+expect mem:700020 0
+expect R0 0x00ab
+end
+
+case ldw_to_register
+asm to r6; ldw (r4)
+set R4 0x0030
+set mem16:700030 0xcafe
+expect R6 0xcafe
+end
+
+case sms_lms
+asm sms (0x20), r4; lms r5, (0x20)
+set R4 0x5aa5
+expect mem16:700020 0x5aa5
+expect R5 0x5aa5
+end
+
+case sm_lm
+asm sm (0x40), r4; lm r6, (0x40)
+set R4 0x1357
+expect mem16:700040 0x1357
+expect R6 0x1357
+end
+
+case lm_odd_address
+asm lm r6, (0x41)
+set mem:700041 0x11
+set mem:700040 0x22
+expect R6 0x2211
+end
+
+case ramb_selects_bank
+asm ramb; stw (r3)
+set R0 1
+set R3 0x10
+expect RAMBR 1
+expect mem16:710010 0x0001
+end
+
+case sbk_writes_back
+asm ldw (r3); inc r0; sbk
+set R3 0x20
+set mem16:700020 0xaaaa
+expect R0 0xaaab
+expect mem16:700020 0xaaab
+end
+
+case getb_variants
+asm getb; to r2; getbh; to r3; getbl; to r4; getbs
+set R14 0x8000
+set ROMBR 1
+set mem:018000 0xa5
+set R2 0x1122
+set R3 0x1122
+expect R0 0x00a5
+expect R2 0xa522
+expect R3 0x11a5
+expect R4 0xffa5
+end
+
+case getbh_getbl_getbs
+asm with r2; getbh
+set R14 0x8000
+set ROMBR 1
+set mem:018000 0xa5
+set R2 0x1122
+expect R2 0xa522
+end
+
+case getbl_op
+asm with r2; getbl
+set R14 0x8000
+set ROMBR 1
+set mem:018000 0xa5
+set R2 0x1122
+expect R2 0x11a5
+end
+
+case getbs_op
+asm getbs
+set R14 0x8000
+set ROMBR 1
+set mem:018000 0xa5
+expect R0 0xffa5
+end
+
+case getc_color
+asm getc
+set R14 0x8000
+set ROMBR 1
+set mem:018000 0xa5
+expect COLR 0xa5
+end
+
+case romb_color_cmode
+asm romb; color; cmode
+set R0 0x1234
+expect ROMBR 0x34
+expect COLR 0x34
+expect POR 0x14
+end
+
+# ----------------------------------------------------------------------------------------------
+# control flow (every taken branch runs its delay slot first)
+
+case link_op
+asm link #3
+expect R11 0x8004
+end
+
+case bra_delay_slot
+asm bra 0x8006; inc r1; inc r2; inc r2; nop; inc r3
+until 8007
+expect R1 1
+expect R2 0
+expect R3 1
+end
+
+case beq_taken
+asm beq 0x8006; inc r1; inc r2; inc r2; nop; inc r3
+set flagZ 1
+until 8007
+expect R1 1
+expect R2 0
+expect R3 1
+end
+
+case beq_not_taken_slot_still_runs
+asm beq 0x8006; inc r1; inc r2; inc r2; nop; inc r3
+until 8007
+expect R1 1
+expect R2 2
+expect R3 1
+end
+
+case bne_taken
+asm bne 0x8006; inc r1; inc r2; inc r2; nop; inc r3
+until 8007
+expect R2 0
+expect R3 1
+end
+
+case bge_s_equals_ov
+asm bge 0x8006; inc r1; inc r2; inc r2; nop; inc r3
+set flagS 1
+set flagOV 1
+until 8007
+expect R2 0
+expect R3 1
+end
+
+case bge_not_taken
+asm bge 0x8006; inc r1; inc r2; inc r2; nop; inc r3
+set flagS 1
+until 8007
+expect R2 2
+end
+
+case blt_taken
+asm blt 0x8006; inc r1; inc r2; inc r2; nop; inc r3
+set flagS 1
+until 8007
+expect R2 0
+expect R3 1
+end
+
+case bpl_taken
+asm bpl 0x8006; inc r1; inc r2; inc r2; nop; inc r3
+until 8007
+expect R2 0
+end
+
+case bmi_not_taken
+asm bmi 0x8006; inc r1; inc r2; inc r2; nop; inc r3
+until 8007
+expect R2 2
+end
+
+case bcc_bcs
+asm bcc 0x8006; nop; inc r2; inc r2; nop; inc r3
+set flagCY 1
+until 8007
+expect R2 2
+end
+
+case bcs_taken
+asm bcs 0x8006; nop; inc r2; inc r2; nop; inc r3
+set flagCY 1
+until 8007
+expect R2 0
+end
+
+case bvc_taken
+asm bvc 0x8006; nop; inc r2; inc r2; nop; inc r3
+until 8007
+expect R2 0
+end
+
+case bvs_taken
+asm bvs 0x8006; nop; inc r2; inc r2; nop; inc r3
+set flagOV 1
+until 8007
+expect R2 0
+end
+
+case branch_backwards
+asm inc r1; inc r1; bra 0x8000
+until 8000
+set R1 0
+end
+
+case loop_op
+asm iwt r13, #0x8003; inc r1; loop; nop
+set R12 3
+expect R1 3
+expect R12 0
+expect flagZ 1
+end
+
+case jmp_delay_slot
+asm jmp r9; inc r1; inc r2; inc r2; inc r3
+set R9 0x8004
+until 8005
+expect R1 1
+expect R2 0
+expect R3 1
+end
+
+case iwt_r15_jumps
+asm iwt r15, #0x8007; inc r1; inc r2; inc r2; nop; inc r3
+until 8008
+expect R1 1
+expect R2 0
+expect R3 1
+end
+
+case ljmp_changes_bank
+asm ljmp r10; inc r1
+set R10 0x0001
+set R0 0x8105
+asmat 018105 inc r2; inc r2; nop
+until 018108
+expect PBR 1
+expect R1 1
+expect R2 2
+expect CBR 0x8100
+end
+
+case call_and_return
+asm link #4; iwt r15, #0x8010; nop; inc r2; nop
+asmat 8010 inc r1; jmp r11; nop
+until 8006
+expect R1 1
+expect R2 1
+expect R11 0x8005
+end
+
+case stop_op
+asm stop; nop
+until 8002
+expect flagG 0
+expect flagIRQ 1
+end
+
+case dest_r15_alu_jumps
+asm to r15; add r3; inc r1; inc r2; nop; inc r5
+set R0 0x8005
+set R3 0
+until 8006
+expect R1 1
+expect R2 0
+expect R5 1
+end
+
+# ----------------------------------------------------------------------------------------------
+# bitmap: PLOT / RPIX / COLOR (layout from the SCMR / POR / SCBR tables)
+
+case plot_4color
+asm plot
+set SCMR 0
+set COLR 3
+set R1 9
+set R2 2
+expect mem:700104 0x40
+expect mem:700105 0x40
+expect R1 10
+end
+
+case plot_16color_planes
+asm plot
+set SCMR 1
+set COLR 0x0a
+expect mem:700000 0
+expect mem:700001 0x80
+expect mem:700010 0
+expect mem:700011 0x80
+expect R1 1
+end
+
+case plot_256color_last_pixel_of_row
+asm plot
+set SCMR 3
+set COLR 0x81
+set R1 7
+expect mem:700000 0x01
+expect mem:700001 0
+expect mem:700031 0x01
+expect mem:700030 0
+end
+
+case plot_transparent_skips_color0
+asm plot
+set SCMR 0
+set COLR 0
+set mem:700000 0xff
+expect mem:700000 0xff
+expect R1 1
+end
+
+case plot_color0_clears_when_not_transparent
+asm plot
+set SCMR 0
+set POR 1
+set COLR 0
+set mem:700000 0xff
+set mem:700001 0xff
+expect mem:700000 0x7f
+expect mem:700001 0x7f
+end
+
+case plot_dither_odd_uses_high_nibble
+asm plot
+set SCMR 0
+set POR 2
+set COLR 0x31
+set R1 1
+set R2 0
+expect mem:700000 0x40
+expect mem:700001 0x40
+end
+
+case plot_dither_even_uses_low_nibble
+asm plot
+set SCMR 0
+set POR 2
+set COLR 0x31
+expect mem:700000 0x80
+expect mem:700001 0
+end
+
+case plot_height_160
+asm plot
+set SCMR 4
+set COLR 1
+set R1 8
+set R2 8
+expect mem:700150 0x80
+end
+
+case plot_obj_mode
+asm plot
+set SCMR 0x24
+set COLR 1
+set R1 0x88
+set R2 8
+expect mem:701110 0x80
+end
+
+case plot_screen_base
+asm plot
+set SCMR 0
+set SCBR 2
+set COLR 1
+expect mem:700800 0x80
+end
+
+case rpix_16color
+asm rpix
+set SCMR 1
+set mem:700001 0x80
+set mem:700011 0x80
+expect R0 0x000a
+expect flagZ 0
+expect flagS 0
+end
+
+case rpix_zero_sets_z
+asm to r3; rpix
+set SCMR 0
+set R3 0x55
+expect R3 0
+expect flagZ 1
+end
+
+case color_high_nibble_option
+asm color
+set POR 4
+set R0 0xa5
+expect COLR 0xaa
+end
+
+case color_freeze_high_option
+asm color
+set POR 8
+set COLR 0x30
+set R0 0xa5
+expect COLR 0x35
+end
+
+case color_both_options
+asm color
+set POR 0x0c
+set COLR 0x30
+set R0 0xa5
+expect COLR 0x3a
+end
+
+# ----------------------------------------------------------------------------------------------
+# a deliberately wrong expectation: the harness must report it
+
+case broken_add broken
+asm add r3
+set R0 1
+set R3 2
+expect R0 4
+end

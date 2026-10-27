@@ -1,0 +1,913 @@
+# SuperFX p-code cases.  Expectations are worked out by hand from the GSU documentation (fullsnes
+# "SNES Cart GSU-n CPU ..." sections): operation and flag tables.  Registers start at 0, flags at 0,
+# memory at 0.  Code (assembled with bass) is placed at 0x8000, RAM at 0x700000, ROM data at 0x018000.
+# ----------------------------------------------------------------------------------------------
+# prefixes and register selection
+
+case sreg_dreg_add
+code b11253
+set R1 0x7fff
+set R3 1
+expect R2 0x8000
+expect R0 0
+expect R1 0x7fff
+expect flagOV 1
+expect flagS 1
+expect flagCY 0
+expect flagZ 0
+end
+
+case with_sets_both
+code 2455
+set R4 0x0010
+set R5 0x0003
+expect R4 0x13
+expect R0 0
+end
+
+case prefix_reset_after_op
+code b15354
+set R1 5
+set R3 6
+set R4 100
+expect R0 111
+end
+
+case to_only_uses_r0_source
+code 1653
+set R0 0x20
+set R1 0x1000
+set R3 0x0005
+expect R6 0x25
+expect R0 0x20
+end
+
+case prefix_kept_across_branch
+code b205015301
+set R2 0x100
+set R3 0x23
+set R0 0x9999
+expect R0 0x123
+end
+
+case alt2_ignored_on_stw
+code 3e33
+set R0 0xabcd
+set R3 0x0020
+expect mem16:700020 0xabcd
+end
+
+case r15_as_source
+code 5f
+set R0 0x10
+expect R0 0x8011
+end
+
+# ----------------------------------------------------------------------------------------------
+# ALU and flags
+
+case add_carry_out
+code 53
+set R0 0xffff
+set R3 1
+expect R0 0
+expect flagCY 1
+expect flagZ 1
+expect flagS 0
+expect flagOV 0
+end
+
+case add_imm
+code 3e55
+set R0 0x10
+expect R0 0x15
+expect flagCY 0
+end
+
+case adc_carry_in_and_out
+code 3d53
+set R0 0xffff
+set R3 0
+set flagCY 1
+expect R0 0
+expect flagCY 1
+expect flagZ 1
+end
+
+case adc_overflow
+code 3d53
+set R0 0x7fff
+set R3 0
+set flagCY 1
+expect R0 0x8000
+expect flagOV 1
+expect flagS 1
+expect flagCY 0
+end
+
+case adc_imm
+code 3f5f
+set R0 0x00f1
+set flagCY 1
+expect R0 0x101
+end
+
+case sub_borrow
+code 63
+set R0 5
+set R3 7
+expect R0 0xfffe
+expect flagCY 0
+expect flagS 1
+expect flagZ 0
+expect flagOV 0
+end
+
+case sub_equal
+code 63
+set R0 5
+set R3 5
+expect R0 0
+expect flagCY 1
+expect flagZ 1
+end
+
+case sub_signed_overflow
+code 63
+set R0 0x8000
+set R3 1
+expect R0 0x7fff
+expect flagOV 1
+expect flagCY 1
+expect flagS 0
+end
+
+case sub_imm
+code 3e63
+set R0 10
+expect R0 7
+end
+
+case sbc_no_carry
+code 3d63
+set R0 5
+set R3 3
+expect R0 1
+expect flagCY 1
+end
+
+case sbc_with_carry
+code 3d63
+set R0 5
+set R3 3
+set flagCY 1
+expect R0 2
+expect flagCY 1
+end
+
+case sbc_borrow_chain
+code 3d63
+set R0 0
+set R3 0
+expect R0 0xffff
+expect flagCY 0
+expect flagS 1
+end
+
+case cmp_leaves_registers
+code 3f63
+set R0 3
+set R3 5
+expect R0 3
+expect flagCY 0
+expect flagS 1
+expect flagZ 0
+end
+
+case cmp_equal
+code 3f63
+set R0 0x1234
+set R3 0x1234
+expect flagZ 1
+expect flagCY 1
+end
+
+case and_bic
+code 153d7373
+set R0 0xff0f
+set R3 0x0ff0
+expect R0 0x0f00
+expect R5 0xf00f
+expect flagS 0
+end
+
+case and_imm_bic_imm
+code 143f7c3e7c
+set R0 0x00ff
+expect R0 0x0c
+expect R4 0xf3
+end
+
+case or_xor
+code c33dc4
+set R0 0x0f00
+set R3 0x00f0
+set R4 0x0fff
+expect R0 0x000f
+end
+
+case or_xor_imm
+code 3ec33fc5
+set R0 0x10
+expect R0 0x16
+end
+
+case not_op
+code 4f
+set R0 0x00ff
+expect R0 0xff00
+expect flagS 1
+expect flagZ 0
+end
+
+case lsr_op
+code 03
+set R0 0x8001
+expect R0 0x4000
+expect flagCY 1
+expect flagS 0
+expect flagZ 0
+end
+
+case asr_op
+code 96
+set R0 0x8001
+expect R0 0xc000
+expect flagCY 1
+expect flagS 1
+end
+
+case rol_op
+code 04
+set R0 0x8001
+set flagCY 1
+expect R0 0x0003
+expect flagCY 1
+end
+
+case ror_op
+code 97
+set R0 0x0001
+set flagCY 1
+expect R0 0x8000
+expect flagCY 1
+expect flagS 1
+end
+
+case div2_negative
+code 3d96
+set R0 0xfffe
+expect R0 0xffff
+expect flagCY 0
+end
+
+case div2_minus_one_gives_zero
+code 3d96
+set R0 0xffff
+expect R0 0
+expect flagCY 1
+expect flagZ 1
+end
+
+case swap_op
+code 4d
+set R0 0x1234
+expect R0 0x3412
+end
+
+case sex_lob_hib
+code 95129e13c0
+set R0 0x0080
+expect R0 0xff80
+expect R2 0x0080
+expect R3 0x00ff
+expect flagS 1
+end
+
+case lob_flags
+code 9e
+set R0 0x12f4
+expect R0 0x00f4
+expect flagS 1
+expect flagZ 0
+end
+
+case hib_zero
+code c0
+set R0 0x0012
+expect R0 0
+expect flagZ 1
+expect flagS 0
+end
+
+case merge_op
+code 70
+set R7 0x12ab
+set R8 0x34cd
+expect R0 0x1234
+expect flagS 0
+expect flagOV 0
+expect flagCY 1
+expect flagZ 1
+end
+
+case merge_flags_all
+code 70
+set R7 0xff00
+set R8 0xff00
+expect R0 0xffff
+expect flagS 1
+expect flagOV 1
+expect flagCY 1
+expect flagZ 1
+end
+
+case merge_zero
+code 70
+set R7 0x00ff
+set R8 0x00ff
+expect R0 0x0000
+expect flagZ 0
+end
+
+case inc_dec
+code d5d5e6
+set R5 0xffff
+set R6 0
+expect R5 1
+expect R6 0xffff
+expect flagS 1
+end
+
+case inc_wraps_to_zero
+code d5
+set R5 0xffff
+expect R5 0
+expect flagZ 1
+end
+
+case mult_signed
+code 83
+set R0 0xfffe
+set R3 3
+expect R0 0xfffa
+expect flagS 1
+end
+
+case umult
+code 3d83
+set R0 0x12fe
+set R3 0x0103
+expect R0 0x02fa
+end
+
+case mult_imm_umult_imm
+code 123f843e83
+set R0 0xfffe
+expect R0 0xfffa
+expect R2 0x03f8
+end
+
+case fmult_positive
+code 9f
+set R0 0x4000
+set R6 0x4000
+expect R0 0x1000
+expect flagCY 0
+end
+
+case fmult_negative_carry
+code 9f
+set R0 1
+set R6 0x8000
+expect R0 0xffff
+expect flagCY 1
+expect flagS 1
+end
+
+case lmult
+code 123d9f
+set R0 0x1234
+set R6 0x0100
+expect R4 0x3400
+expect R2 0x0012
+end
+
+case lmult_negative
+code 3d9f
+set R0 0xffff
+set R6 0x0002
+expect R4 0xfffe
+expect R0 0xffff
+expect flagS 1
+end
+
+# ----------------------------------------------------------------------------------------------
+# moves and immediates
+
+case ibt_sign_extends
+code a580a67f
+expect R5 0xff80
+expect R6 0x007f
+end
+
+case iwt_op
+code f53412
+expect R5 0x1234
+end
+
+case move_op
+code 2315
+set R3 0x8001
+expect R5 0x8001
+expect flagS 0
+expect flagZ 0
+end
+
+case moves_flags
+code 25b3
+set R3 0x0080
+expect R5 0x0080
+expect flagOV 1
+expect flagS 0
+expect flagZ 0
+end
+
+case moves_zero_negative
+code 25b3
+set R3 0x8000
+expect R5 0x8000
+expect flagS 1
+expect flagOV 0
+end
+
+# ----------------------------------------------------------------------------------------------
+# memory
+
+case stw_ldw_roundtrip
+code 33a00043
+set R0 0xbeef
+set R3 0x0010
+expect mem:700010 0xef
+expect mem:700011 0xbe
+expect R0 0xbeef
+end
+
+case stw_odd_address_swaps
+code 33
+set R0 0xbeef
+set R3 0x0011
+expect mem:700011 0xef
+expect mem:700010 0xbe
+end
+
+case ldw_odd_address_swaps
+code 43
+set R3 0x0011
+set mem:700011 0x12
+set mem:700010 0x34
+expect R0 0x3412
+end
+
+case stb_ldb
+code 3d33a0003d43
+set R0 0x12ab
+set R3 0x0021
+expect mem:700021 0xab
+expect mem:700020 0
+expect R0 0x00ab
+end
+
+case ldw_to_register
+code 1644
+set R4 0x0030
+set mem16:700030 0xcafe
+expect R6 0xcafe
+end
+
+case sms_lms
+code 3ea4103da510
+set R4 0x5aa5
+expect mem16:700020 0x5aa5
+expect R5 0x5aa5
+end
+
+case sm_lm
+code 3ef440003df64000
+set R4 0x1357
+expect mem16:700040 0x1357
+expect R6 0x1357
+end
+
+case lm_odd_address
+code 3df64100
+set mem:700041 0x11
+set mem:700040 0x22
+expect R6 0x2211
+end
+
+case ramb_selects_bank
+code 3edf33
+set R0 1
+set R3 0x10
+expect RAMBR 1
+expect mem16:710010 0x0001
+end
+
+case sbk_writes_back
+code 43d090
+set R3 0x20
+set mem16:700020 0xaaaa
+expect R0 0xaaab
+expect mem16:700020 0xaaab
+end
+
+case getb_variants
+code ef123def133eef143fef
+set R14 0x8000
+set ROMBR 1
+set mem:018000 0xa5
+set R2 0x1122
+set R3 0x1122
+expect R0 0x00a5
+expect R2 0xa522
+expect R3 0x11a5
+expect R4 0xffa5
+end
+
+case getbh_getbl_getbs
+code 223def
+set R14 0x8000
+set ROMBR 1
+set mem:018000 0xa5
+set R2 0x1122
+expect R2 0xa522
+end
+
+case getbl_op
+code 223eef
+set R14 0x8000
+set ROMBR 1
+set mem:018000 0xa5
+set R2 0x1122
+expect R2 0x11a5
+end
+
+case getbs_op
+code 3fef
+set R14 0x8000
+set ROMBR 1
+set mem:018000 0xa5
+expect R0 0xffa5
+end
+
+case getc_color
+code df
+set R14 0x8000
+set ROMBR 1
+set mem:018000 0xa5
+expect COLR 0xa5
+end
+
+case romb_color_cmode
+code 3fdf4e3d4e
+set R0 0x1234
+expect ROMBR 0x34
+expect COLR 0x34
+expect POR 0x14
+end
+
+# ----------------------------------------------------------------------------------------------
+# control flow (every taken branch runs its delay slot first)
+
+case link_op
+code 93
+expect R11 0x8004
+end
+
+case bra_delay_slot
+code 0504d1d2d201d3
+until 8007
+expect R1 1
+expect R2 0
+expect R3 1
+end
+
+case beq_taken
+code 0904d1d2d201d3
+set flagZ 1
+until 8007
+expect R1 1
+expect R2 0
+expect R3 1
+end
+
+case beq_not_taken_slot_still_runs
+code 0904d1d2d201d3
+until 8007
+expect R1 1
+expect R2 2
+expect R3 1
+end
+
+case bne_taken
+code 0804d1d2d201d3
+until 8007
+expect R2 0
+expect R3 1
+end
+
+case bge_s_equals_ov
+code 0604d1d2d201d3
+set flagS 1
+set flagOV 1
+until 8007
+expect R2 0
+expect R3 1
+end
+
+case bge_not_taken
+code 0604d1d2d201d3
+set flagS 1
+until 8007
+expect R2 2
+end
+
+case blt_taken
+code 0704d1d2d201d3
+set flagS 1
+until 8007
+expect R2 0
+expect R3 1
+end
+
+case bpl_taken
+code 0a04d1d2d201d3
+until 8007
+expect R2 0
+end
+
+case bmi_not_taken
+code 0b04d1d2d201d3
+until 8007
+expect R2 2
+end
+
+case bcc_bcs
+code 0c0401d2d201d3
+set flagCY 1
+until 8007
+expect R2 2
+end
+
+case bcs_taken
+code 0d0401d2d201d3
+set flagCY 1
+until 8007
+expect R2 0
+end
+
+case bvc_taken
+code 0e0401d2d201d3
+until 8007
+expect R2 0
+end
+
+case bvs_taken
+code 0f0401d2d201d3
+set flagOV 1
+until 8007
+expect R2 0
+end
+
+case branch_backwards
+code d1d105fc
+until 8000
+set R1 0
+end
+
+case loop_op
+code fd0380d13c01
+set R12 3
+expect R1 3
+expect R12 0
+expect flagZ 1
+end
+
+case jmp_delay_slot
+code 99d1d2d2d3
+set R9 0x8004
+until 8005
+expect R1 1
+expect R2 0
+expect R3 1
+end
+
+case iwt_r15_jumps
+code ff0780d1d2d201d3
+until 8008
+expect R1 1
+expect R2 0
+expect R3 1
+end
+
+case ljmp_changes_bank
+code 3d9ad1
+set R10 0x0001
+set R0 0x8105
+codeat 018105 d2d201
+until 018108
+expect PBR 1
+expect R1 1
+expect R2 2
+expect CBR 0x8100
+end
+
+case call_and_return
+code 94ff108001d201
+codeat 8010 d19b01
+until 8006
+expect R1 1
+expect R2 1
+expect R11 0x8005
+end
+
+case stop_op
+code 0001
+until 8002
+expect flagG 0
+expect flagIRQ 1
+end
+
+case dest_r15_alu_jumps
+code 1f53d1d201d5
+set R0 0x8005
+set R3 0
+until 8006
+expect R1 1
+expect R2 0
+expect R5 1
+end
+
+# ----------------------------------------------------------------------------------------------
+# bitmap: PLOT / RPIX / COLOR (layout from the SCMR / POR / SCBR tables)
+
+case plot_4color
+code 4c
+set SCMR 0
+set COLR 3
+set R1 9
+set R2 2
+expect mem:700104 0x40
+expect mem:700105 0x40
+expect R1 10
+end
+
+case plot_16color_planes
+code 4c
+set SCMR 1
+set COLR 0x0a
+expect mem:700000 0
+expect mem:700001 0x80
+expect mem:700010 0
+expect mem:700011 0x80
+expect R1 1
+end
+
+case plot_256color_last_pixel_of_row
+code 4c
+set SCMR 3
+set COLR 0x81
+set R1 7
+expect mem:700000 0x01
+expect mem:700001 0
+expect mem:700031 0x01
+expect mem:700030 0
+end
+
+case plot_transparent_skips_color0
+code 4c
+set SCMR 0
+set COLR 0
+set mem:700000 0xff
+expect mem:700000 0xff
+expect R1 1
+end
+
+case plot_color0_clears_when_not_transparent
+code 4c
+set SCMR 0
+set POR 1
+set COLR 0
+set mem:700000 0xff
+set mem:700001 0xff
+expect mem:700000 0x7f
+expect mem:700001 0x7f
+end
+
+case plot_dither_odd_uses_high_nibble
+code 4c
+set SCMR 0
+set POR 2
+set COLR 0x31
+set R1 1
+set R2 0
+expect mem:700000 0x40
+expect mem:700001 0x40
+end
+
+case plot_dither_even_uses_low_nibble
+code 4c
+set SCMR 0
+set POR 2
+set COLR 0x31
+expect mem:700000 0x80
+expect mem:700001 0
+end
+
+case plot_height_160
+code 4c
+set SCMR 4
+set COLR 1
+set R1 8
+set R2 8
+expect mem:700150 0x80
+end
+
+case plot_obj_mode
+code 4c
+set SCMR 0x24
+set COLR 1
+set R1 0x88
+set R2 8
+expect mem:701110 0x80
+end
+
+case plot_screen_base
+code 4c
+set SCMR 0
+set SCBR 2
+set COLR 1
+expect mem:700800 0x80
+end
+
+case rpix_16color
+code 3d4c
+set SCMR 1
+set mem:700001 0x80
+set mem:700011 0x80
+expect R0 0x000a
+expect flagZ 0
+expect flagS 0
+end
+
+case rpix_zero_sets_z
+code 133d4c
+set SCMR 0
+set R3 0x55
+expect R3 0
+expect flagZ 1
+end
+
+case color_high_nibble_option
+code 4e
+set POR 4
+set R0 0xa5
+expect COLR 0xaa
+end
+
+case color_freeze_high_option
+code 4e
+set POR 8
+set COLR 0x30
+set R0 0xa5
+expect COLR 0x35
+end
+
+case color_both_options
+code 4e
+set POR 0x0c
+set COLR 0x30
+set R0 0xa5
+expect COLR 0x3a
+end
+
+# ----------------------------------------------------------------------------------------------
+# a deliberately wrong expectation: the harness must report it
+
+case broken_add broken
+code 53
+set R0 1
+set R3 2
+expect R0 4
+end

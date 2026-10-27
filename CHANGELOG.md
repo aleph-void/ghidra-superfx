@@ -4,6 +4,20 @@ All notable changes to ghidra-superfx are recorded in this file.
 The format is loosely based on Keep a Changelog; versions follow the
 SLEIGH spec's own version stamp in `data/languages/superfx.slaspec`.
 
+## v1.0 (Ghidra-Rare) — 2026-10-27
+
+Rewrite of the p-code and verification; details in [CREDITS.md](CREDITS.md) and
+[GHIDRA-RARE.md](GHIDRA-RARE.md).
+
+- ALT1/ALT2/ALT3 and TO/FROM/WITH tracked at decode time (the "v0.4 plan" of v0.3.1): every
+  operation uses Sreg and Dreg; ALT prefixes without an effect are ignored (ALT3 acts as ALT1).
+- ALU/flag, memory (RAMBR, ROMBR:R14, odd addresses), multiply, MERGE, LOOP, LINK, JMP/LJMP,
+  GETBx, COLOR/CMODE fixes; PLOT and RPIX in p-code; opcode 06 branches when S = V.
+- Delay slots for every write to R15; `IWT R15` is a direct jump.
+- The decompiler works (the pspec/cspec no longer contain XML comments); stack pointer R10.
+- Analyzer for LINK calls and computed `JMP`/`LOOP` targets.
+- Extension build files for Ghidra 12.1.3, 12.1.4 and 12.2; test suite under `test/`.
+
 ## v0.3.2 — 2026-05-13
 
 Documentation-only release. No changes to the SLEIGH spec, pspec,

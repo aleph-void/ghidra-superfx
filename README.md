@@ -7,11 +7,9 @@ co-processor, the 16-bit RISC found inside enhancement-chip SNES cartridges.
 | Field | Value |
 |---|---|
 | Language id | `SuperFX:LE:24:default` |
-| Tested against | Ghidra 12.0.4 (currently the latest public release) |
-| Forward compatibility | When a newer Ghidra ships (12.1, 12.2, …), open `extension.properties` and change the `version=12.0.4` line to match your build. The SLEIGH spec itself is forward-compatible; Ghidra's extension-version check is the only thing that gates loading. |
-| Backward compatibility | Should also work on Ghidra 11.3.2 by setting `version=11.3.2`; not fully retested for that release. |
-| Verified ROM | Star Fox (USA) Rev 2 (SHA1 `cf08148cd8f26d51f8c67c956179dfc594e7a4f1`) |
-| Accuracy | **100 % byte-boundary, 100 % mnemonic-family agreement** against bsnes ground truth across 64 KB of real GSU code |
+| Tested against | Ghidra 12.1.3, 12.1.4 and 12.2 (Ghidra-Rare release zips, one per version; see [GHIDRA-RARE.md](GHIDRA-RARE.md)) |
+| Version check | The release zips carry the Ghidra version they were built for in `extension.properties` (`version=@extversion@` is filled in by the build); build your own with `gradle buildExtension` for another version |
+| Verified | Decode against bass and WLA DX (two assemblers) and MAME `unidasm`, 106 hand-computed emulator cases, and the GSU code the DiscoC compiler writes; the numbers are in [GHIDRA-RARE.md](GHIDRA-RARE.md). (Upstream's own check: Star Fox (USA) Rev 2, SHA1 `cf08148cd8f26d51f8c67c956179dfc594e7a4f1`, against bsnes; that ROM is not part of this repository's tests) |
 | License | BSD 3-Clause |
 
 ## Supported games
@@ -47,7 +45,7 @@ Any GSU code in these cartridges decodes through this module.
 
 ### Option B — release zip (for File → Install Extensions)
 
-If a release zip is available on the GitHub Releases page:
+Prebuilt zips for Ghidra 12.1.3, 12.1.4 and 12.2 are on the fork's Releases page:
 
 1. Ghidra → File → Install Extensions… → `+` → pick the downloaded
    `ghidra-superfx-vX.Y.Z.zip`.
@@ -65,12 +63,19 @@ If a release zip is available on the GitHub Releases page:
   fractional multiplies, GETB / GETC ROM-byte fetches, RAMB / ROMB
   bank-register writes, HIB / LOB / SEX / ROR / ASR / DIV2 / SWAP /
   NOT bit ops).
-- Models the **ALT1 / ALT2 / ALT3 prefix state machine** through a
-  SLEIGH context register propagated with `globalset(inst_next, …)`.
+- Models the **ALT1 / ALT2 / ALT3 and TO / FROM / WITH prefix state** through SLEIGH
+  context fields propagated with `globalset(inst_next, …)`: every ALU, load, store and
+  multiply reads the selected source register (Sreg) and writes the selected destination
+  register (Dreg); ALT prefixes that do not apply to an opcode are ignored (ALT3 acts as
+  ALT1), and `1n`/`Bn` after `WITH` are `MOVE`/`MOVES`.
 - Models the **branch delay slot** on every taken control-flow
-  instruction (BRA + 10 conditional branches, JMP, LJMP, LOOP,
-  `IWT R15, #imm16`) via SLEIGH's `delayslot(1)` directive — important
+  instruction (BRA + 10 conditional branches, JMP, LJMP, LOOP, and any write to
+  R15) via SLEIGH's `delayslot(1)` directive — important
   for accurate P-code / decompiler output.
+- Models **PLOT / RPIX** (bit-plane pixel writes and reads from SCMR/SCBR/POR) and the
+  POR nibble options of COLOR/GETC in p-code.
+- An analyzer marks `LINK #n` + jump as a call and resolves `JMP Rn` / `LOOP` targets
+  loaded with `IWT`.
 - Maps the special-function registers `SFR`, `PBR`, `ROMBR`, `RAMBR`,
   `CBR`, `SCBR`, `SCMR`, `COLR`, `POR`, `BRAMR`, `CFGR` plus the
   individual SFR flag bits as discrete varnodes.
@@ -80,19 +85,27 @@ and the slaspec header for full design rationale.
 
 ## Limitations / known corner cases
 
-- Hex prefix style (`$` vs `0x`) is a Ghidra-wide Listing display
+Status of the limitations upstream listed (Ghidra-Rare, see [GHIDRA-RARE.md](GHIDRA-RARE.md) for the rest):
+
+- **Fixed:** "`SREG` / `DREG` selectors only partially modelled" (CHANGELOG, "scheduled for
+  v0.4"): `TO`/`FROM`/`WITH` now drive the registers every following operation reads and writes.
+- **Fixed:** branches to and calls of other code were not followed (no p-code consequence of
+  `LINK`, no references for `JMP Rn`/`LOOP`): the bundled analyzer handles them.
+- **Remaining, display only:** Hex prefix style (`$` vs `0x`) is a Ghidra-wide Listing display
   option (Edit → Tool Options → Listing Display). This module emits
   the default `0x` prefix; the user-facing choice is not slaspec
   controllable. (Confirmed by surveying Ghidra-shipped 6502, 65C02,
   CR16C specs and the SLEIGH `tokens` documentation.)
-- An `ALT1` / `ALT2` / `ALT3` prefix appearing **inside the delay slot
-  of a taken branch** would (per a strict reading of the hardware)
-  mark the branch target with the ALT flag. This module sets the flag
-  at the prefix's physical fall-through address, which is correct in
-  straight-line code and the entire 64 KB of validated Star Fox GSU
-  code, but is the wrong address for that particular corner case.
-  Fixing it requires a major restructuring of how altCtx is carried
-  and is left for a future pcodeop-driven runtime-flag rewrite.
+- **Remaining:** an `ALT1` / `ALT2` / `ALT3` (or `TO`/`FROM`/`WITH`) prefix appearing **inside the
+  delay slot of a taken branch** marks, on the hardware, the instruction at the branch *target*.
+  The prefix state is a decode-time context set for the byte after the prefix, so the module
+  applies it to the physical fall-through address, which is right in straight-line code and when
+  the prefix is placed before the branch ("prefix + Bxx + suffix": that works), but not for this
+  corner case. A taken-vs-not-taken branch cannot give the target a context from inside the slot
+  in SLEIGH without making the slot part of the branch instruction.
+- **Remaining:** a multi-byte instruction in a delay slot executes its first byte from the slot and
+  the rest from the branch target (fullsnes); the module decodes it as one instruction at the slot
+  address.
 
 ## Validation methodology
 
