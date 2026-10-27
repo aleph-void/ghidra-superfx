@@ -36,7 +36,7 @@
     <range space="ram"/>
   </global>
 
-  <stackpointer register="R11" space="ram"/>
+  <stackpointer register="R10" space="ram"/>
 
   <default_proto>
     <prototype name="__superfx" extrapop="0" stackshift="0">
@@ -60,7 +60,7 @@
         </pentry>
       </output>
       <unaffected>
-        <register name="R11"/>
+        <register name="R10"/>
         <register name="R15"/>
       </unaffected>
     </prototype>
