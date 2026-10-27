@@ -1,23 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <processor_spec>
-
-  <!-- R15 is the GSU program counter. -->
   <programcounter register="R15"/>
-
-  <!--
-    SuperFX bus layout in the $3000-$32FF region:
-      $3000-$301F  R0..R15 (sixteen 16-bit GSU general registers)
-      $3030-$303F  Special-function registers (SFR low/high, BRAMR,
-                   PBR, ROMBR, CFGR, SCBR, CLSR, SCMR, VCR, RAMBR, CBR)
-      $3040-$30FF  Reserved (unmapped on real hardware)
-      $3100-$32FF  Instruction cache (512 bytes, mirrored into the
-                   GSU code space when CACHE is executed)
-
-    GSU_REGS therefore covers $3000-$30FF (length 0x100); GSU_CACHE
-    covers $3100-$32FF (length 0x200). Earlier versions of this spec
-    declared GSU_REGS as length 0x300 which overlapped GSU_CACHE —
-    fixed in v0.3.1.
-  -->
   <default_memory_blocks>
     <memory_block name="GSU_REGS"
                   start_address="ram:3000"
@@ -28,17 +11,12 @@
                   length="0x200"
                   initialized="false"/>
   </default_memory_blocks>
-
-  <!--
-    Context register defaults: no ALT prefix, no WITH, Sreg = Dreg = R0. The prefix state is
-    tracked at decode time (see superfx.slaspec).
-  -->
   <context_data>
     <context_set space="ram">
-      <set name="alt" val="0" description="ALT1 / ALT2 / ALT3 prefix state for the next instruction"/>
-      <set name="b" val="0" description="WITH seen: 1n is MOVE, Bn is MOVES"/>
-      <set name="sreg" val="0" description="source register selector (FROM / WITH)"/>
-      <set name="dreg" val="0" description="destination register selector (TO / WITH)"/>
+      <set name="alt" val="0"/>
+      <set name="b" val="0"/>
+      <set name="sreg" val="0"/>
+      <set name="dreg" val="0"/>
     </context_set>
   </context_data>
 

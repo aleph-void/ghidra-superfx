@@ -1,15 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <compiler_spec>
 
-  <!--
-    The SuperFX has no formal calling convention - the GSU is driven by SNES
-    65816 code that pokes opcodes/registers via MMIO. Functions on the GSU
-    side are entered via LJMP from cached entries set up by the host. We
-    declare a stack space anyway because Ghidra requires one; in practice
-    the SuperFX has no real stack (LINK only saves the return address into
-    R11).
-  -->
-
   <data_organization>
     <absolute_max_alignment value="0" />
     <machine_alignment value="2" />
