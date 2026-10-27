@@ -20,3 +20,5 @@ __pycache__/
 .venv/
 venv/
 *.sla
+lib/*.jar
+__pycache__/
